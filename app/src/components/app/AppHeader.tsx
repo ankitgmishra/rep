@@ -90,12 +90,6 @@ export function AppHeader() {
         breadcrumbs: [{ label: "Workspace", href: "/dashboard" }, { label: "Settings" }],
       };
     }
-    if (pathname.startsWith("/onboarding")) {
-      return {
-        title: "Storefront Onboarding",
-        breadcrumbs: [{ label: "Workspace", href: "/dashboard" }, { label: "Onboarding" }],
-      };
-    }
     return {
       title: "Workspace",
       breadcrumbs: [{ label: "Workspace" }],

@@ -114,7 +114,7 @@ function SignupForm() {
       if (data.session) {
         setOtpSuccess(true);
         setTimeout(() => {
-          router.push(storeUrl ? `/onboarding?storeUrl=${encodeURIComponent(storeUrl)}` : "/onboarding");
+          router.push(storeUrl ? `/dashboard?url=${encodeURIComponent(storeUrl)}` : "/dashboard");
           router.refresh();
         }, 1200);
       }
@@ -215,7 +215,7 @@ function SignupForm() {
       }
 
       if (data.session) {
-        router.push(cleanStoreUrl ? `/onboarding?storeUrl=${encodeURIComponent(cleanStoreUrl)}` : "/onboarding");
+        router.push(cleanStoreUrl ? `/dashboard?url=${encodeURIComponent(cleanStoreUrl)}` : "/dashboard");
         router.refresh();
         return;
       }

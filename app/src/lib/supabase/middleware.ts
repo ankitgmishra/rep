@@ -41,7 +41,6 @@ export async function updateSession(request: NextRequest) {
 
   // Protected application routes
   const isProtectedRoute =
-    pathname.startsWith("/onboarding") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/brands") ||
     pathname.startsWith("/campaigns") ||
