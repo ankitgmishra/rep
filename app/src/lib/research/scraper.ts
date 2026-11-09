@@ -204,10 +204,16 @@ RULES:
 
     return [];
   } catch (err) {
-    console.error("[FIRECRAWL EXTRACTOR] Gemini product extraction from markdown encountered an error:", err);
-    throw new Error(
-      `Gemini extraction error: Failed to structure products from Firecrawl scrape (${err instanceof Error ? err.message : String(err)}). Fallback disabled.`
-    );
+    console.warn("[FIRECRAWL EXTRACTOR] Gemini product extraction error, falling back to heuristic markdown parser:", err);
+    try {
+      const fallbackProducts = extractProductsFromMarkdownHeuristic(markdown, targetUrl);
+      if (fallbackProducts.length > 0) {
+        return fallbackProducts;
+      }
+    } catch (fallbackErr) {
+      console.error("[FIRECRAWL EXTRACTOR] Fallback parser also failed:", fallbackErr);
+    }
+    return [];
   }
 }
 
@@ -370,6 +376,7 @@ export async function scrapeStorefront(rawUrl: string): Promise<RawScrapedBrand>
       formats: ["branding", "markdown", "links"],
       onlyMainContent: false,
     }),
+    signal: AbortSignal.timeout(25000),
   });
 
   if (!res.ok) {

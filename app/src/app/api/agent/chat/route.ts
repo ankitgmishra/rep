@@ -13,7 +13,7 @@ import { regenerateCreativeVersion } from "@/lib/generation/orchestrator";
 import { getGeminiModel } from "@/lib/llm/gemini";
 import { generateText } from "ai";
 
-export const maxDuration = 120; // 2 minutes for fal.ai and Firecrawl
+export const maxDuration = 60; // Maximum allowed on Vercel Hobby plan (60s)
 
 export async function POST(req: NextRequest) {
   try {

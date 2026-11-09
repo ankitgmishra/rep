@@ -178,6 +178,27 @@ interface AgentChatWorkspaceProps {
   initialStoreUrl?: string;
 }
 
+async function safeFetchJson<T = any>(url: string, options: RequestInit): Promise<T> {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    if (res.status === 504 || text.includes("FUNCTION_INVOCATION_TIMEOUT") || text.includes("timeout")) {
+      throw new Error("Serverless function timed out (60s limit). Please retry with a direct product or collection URL.");
+    }
+    if (res.status === 401) {
+      throw new Error("Your session expired. Please refresh and log in.");
+    }
+    throw new Error(`Server returned status ${res.status}: ${text.slice(0, 100) || "Empty response"}`);
+  }
+  if (!res.ok || data.success === false) {
+    throw new Error(data.error || `Request failed with status ${res.status}`);
+  }
+  return data as T;
+}
+
 export function AgentChatWorkspace({
   initialBrandId,
   initialCampaignId,
@@ -266,7 +287,16 @@ export function AgentChatWorkspace({
       setTelemetryMessage("Restoring saved workspace...");
 
       try {
-        const res = await fetch("/api/agent/chat", {
+        const data = await safeFetchJson<{
+          success: boolean;
+          empty?: boolean;
+          brand?: { id: string; name: string; website_url: string };
+          brandKit?: BrandKitData;
+          products?: DiscoveredProduct[];
+          campaign?: { id: string; name: string; objective: string };
+          concepts?: AdConcept[];
+          creatives?: AdCreative[];
+        }>("/api/agent/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -275,11 +305,6 @@ export function AgentChatWorkspace({
             campaignId: campaignIdToLoad,
           }),
         });
-
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || "Failed to load saved session.");
-        }
 
         if (data.empty) {
           setActiveStage("idle");
@@ -294,7 +319,7 @@ export function AgentChatWorkspace({
           id: `restored-welcome-${Date.now()}`,
           sender: "agent",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          text: `Resumed active workspace for ${data.brand.name}. You can review your Brand Profile, select products, or generate 9:16 ads.`,
+          text: `Resumed active workspace for ${data.brand?.name || "your brand"}. You can review your Brand Profile, select products, or generate 9:16 ads.`,
           type: "text",
         });
 
@@ -411,7 +436,12 @@ export function AgentChatWorkspace({
     setTelemetryMessage("Researching storefront pages and discovering products...");
 
     try {
-      const res = await fetch("/api/agent/chat", {
+      const data = await safeFetchJson<{
+        success: boolean;
+        brand: { id: string; name: string; website_url: string };
+        brandKit: BrandKitData;
+        products: DiscoveredProduct[];
+      }>("/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -419,11 +449,6 @@ export function AgentChatWorkspace({
           storeUrl: urlToResearch.trim(),
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Store research failed.");
-      }
 
       setActiveBrand(data.brand);
       setActiveBrandKit(data.brandKit);
@@ -479,7 +504,11 @@ export function AgentChatWorkspace({
     );
 
     try {
-      const res = await fetch("/api/agent/chat", {
+      const data = await safeFetchJson<{
+        success: boolean;
+        campaign: { id: string; name: string; objective: string };
+        concepts: AdConcept[];
+      }>("/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -489,11 +518,6 @@ export function AgentChatWorkspace({
           additionalInstructions: customInstructions || null,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to develop creative concepts.");
-      }
 
       setActiveCampaign(data.campaign);
       setActiveConcepts(data.concepts || []);
@@ -538,7 +562,12 @@ export function AgentChatWorkspace({
     setTelemetryMessage(`Generating finished 9:16 portrait ad...`);
 
     try {
-      const res = await fetch("/api/agent/chat", {
+      const data = await safeFetchJson<{
+        success: boolean;
+        creative: AdCreative;
+        review: AdCreative["review"];
+        version: AdCreativeVersion;
+      }>("/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -548,11 +577,6 @@ export function AgentChatWorkspace({
           campaignId: activeCampaign.id,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Ad generation could not be completed.");
-      }
 
       const creativeData: AdCreative = {
         ...data.creative,
@@ -597,7 +621,10 @@ export function AgentChatWorkspace({
     );
 
     try {
-      const res = await fetch("/api/agent/chat", {
+      const data = await safeFetchJson<{
+        success: boolean;
+        creatives: AdCreative[];
+      }>("/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -606,11 +633,6 @@ export function AgentChatWorkspace({
           productId: targetProductId,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Batch generation failed.");
-      }
 
       const newCreatives: AdCreative[] = data.creatives || [];
       if (newCreatives.length > 0) {
@@ -672,7 +694,14 @@ export function AgentChatWorkspace({
     setTelemetryMessage("Analyzing feedback & generating revised 9:16 ad...");
 
     try {
-      const res = await fetch("/api/agent/chat", {
+      const data = await safeFetchJson<{
+        success: boolean;
+        creative: AdCreative;
+        version: AdCreativeVersion;
+        allVersions?: AdCreativeVersion[];
+        review?: AdCreative["review"];
+        changeSummary?: string;
+      }>("/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -681,11 +710,6 @@ export function AgentChatWorkspace({
           feedbackText: feedbackTextToApply.trim(),
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Creative revision failed.");
-      }
 
       const existingCreative = allCreatives.find((c) => c.id === targetId) || activeCreative;
 
@@ -737,7 +761,9 @@ export function AgentChatWorkspace({
     setIsProcessing(true);
     setTelemetryMessage(`Approving creative version ${versionNumber}...`);
     try {
-      const res = await fetch("/api/agent/chat", {
+      const data = await safeFetchJson<{
+        success: boolean;
+      }>("/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -746,11 +772,6 @@ export function AgentChatWorkspace({
           versionNumber,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Approval failed.");
-      }
 
       setActiveCreative((prev) => {
         if (!prev) return null;
@@ -884,12 +905,11 @@ export function AgentChatWorkspace({
     // 6. Gemini standard chat
     addUserMessage(text);
     setIsProcessing(true);
-    fetch("/api/agent/chat", {
+    safeFetchJson<{ message?: string }>("/api/agent/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "send_message", message: text }),
     })
-      .then((res) => res.json())
       .then((data) => {
         addAgentMessage(data.message || "I am standing by.");
       })
