@@ -29,6 +29,7 @@ import {
   ArrowLeft,
   Copy,
   Trash2,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -401,22 +402,59 @@ export function AgentChatWorkspace({
     []
   );
 
-  useEffect(() => {
-    let isMounted = true;
+  // Refresh saved brands list
+  const refreshSavedBrands = useCallback(() => {
     fetch("/api/agent/saved")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (isMounted && data?.brands) {
+        if (data?.brands) {
           setSavedBrands(data.brands);
         }
       })
       .catch((err) => {
         console.warn("Could not load saved brands:", err);
       });
-    return () => {
-      isMounted = false;
-    };
   }, []);
+
+  // Reset to a brand-new campaign while preserving saved session in DB & sidebar
+  const handleResetToNewCampaign = useCallback(() => {
+    refreshSavedBrands();
+    setMessages([]);
+    setActiveBrand(null);
+    setActiveBrandKit(null);
+    setActiveProducts([]);
+    setSelectedProductId("");
+    setActiveCampaign(null);
+    setActiveConcepts([]);
+    setSelectedConceptId("");
+    setActiveCreative(null);
+    setAllCreatives([]);
+    setActiveStage("idle");
+    setInputMessage("");
+    setTelemetryMessage("");
+
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", "/dashboard");
+    }
+  }, [refreshSavedBrands]);
+
+  // Listen for 'cadra:new-campaign' events or ?new=true in URL
+  useEffect(() => {
+    const handleEvent = () => handleResetToNewCampaign();
+    window.addEventListener("cadra:new-campaign", handleEvent);
+
+    if (typeof window !== "undefined" && window.location.search.includes("new=true")) {
+      handleResetToNewCampaign();
+    }
+
+    return () => {
+      window.removeEventListener("cadra:new-campaign", handleEvent);
+    };
+  }, [handleResetToNewCampaign]);
+
+  useEffect(() => {
+    refreshSavedBrands();
+  }, [refreshSavedBrands]);
 
   useEffect(() => {
     if (initialBrandId || initialCampaignId) {
@@ -957,6 +995,18 @@ export function AgentChatWorkspace({
             >
               {activeStage.replace(/_/g, " ")}
             </Badge>
+          )}
+
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={handleResetToNewCampaign}
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-slate-800 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-all cursor-pointer shadow-2xs active:scale-98"
+              title="Start a fresh campaign"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Campaign</span>
+            </button>
           )}
         </div>
       </div>

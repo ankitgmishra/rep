@@ -141,8 +141,14 @@ export function AppHeader() {
       {/* Top Navigation Right Actions */}
       <div className="flex items-center gap-3">
         <Link
-          href="/dashboard"
-          className="flex items-center gap-1.5 rounded-lg bg-slate-950 dark:bg-white hover:bg-slate-800 dark:hover:bg-neutral-200 text-white dark:text-slate-950 px-3.5 py-1.5 text-xs font-semibold transition-colors shadow-xs"
+          href="/dashboard?new=true"
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("cadra:new-campaign"));
+            }
+          }}
+          className="flex items-center gap-1.5 rounded-lg bg-slate-950 dark:bg-white hover:bg-slate-800 dark:hover:bg-neutral-200 text-white dark:text-slate-950 px-3.5 py-1.5 text-xs font-semibold transition-colors shadow-xs cursor-pointer active:scale-98"
+          title="Start a new campaign"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Campaign</span>
