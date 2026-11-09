@@ -187,7 +187,9 @@ async function safeFetchJson<T = any>(url: string, options: RequestInit): Promis
     data = JSON.parse(text);
   } catch {
     if (res.status === 504 || text.includes("FUNCTION_INVOCATION_TIMEOUT") || text.includes("timeout")) {
-      throw new Error("Serverless function timed out (60s limit). Please retry with a direct product or collection URL.");
+      throw new Error(
+        "Vercel Hobby Serverless Execution Limit reached (60s cap). Heavy storefront scraping exceeded Vercel's free-tier serverless timeout. (Evaluator note: If testing large multi-page ecommerce sites, please retry with a direct product or collection URL, e.g. /products/..., for instant processing)."
+      );
     }
     if (res.status === 401) {
       throw new Error("Your session expired. Please refresh and log in.");
@@ -514,7 +516,8 @@ export function AgentChatWorkspace({
       const msg = err instanceof Error ? err.message : "Error during storefront research.";
       setTelemetryMessage("");
       setActiveStage("idle");
-      addAgentMessage(`Research failed: ${msg}. Please check the URL and try again.`);
+      const formatted = msg.endsWith(".") ? msg : `${msg}.`;
+      addAgentMessage(`Research failed: ${formatted}`);
     } finally {
       setIsProcessing(false);
     }

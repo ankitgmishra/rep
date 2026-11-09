@@ -898,8 +898,11 @@ Keep responses concise, helpful, and focused on marketing performance.`,
 
     return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
   } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : "Internal server error";
+    let errorMsg = err instanceof Error ? err.message : "Internal server error";
     console.error("[AGENT CHAT API ERROR]:", err);
+    if (errorMsg.includes("timeout") || errorMsg.includes("TimeoutError") || errorMsg.includes("aborted")) {
+      errorMsg = `${errorMsg} (Note: Vercel Hobby serverless functions have a 60s hard ceiling. For heavy storefronts, please retry with a direct product or collection URL.)`;
+    }
     return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }

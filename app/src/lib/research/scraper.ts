@@ -365,19 +365,30 @@ export async function scrapeStorefront(rawUrl: string): Promise<RawScrapedBrand>
   }
 
   // 1. Invoke Firecrawl Scrape API with Brand Extractor and Markdown formats
-  const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      url: targetUrl,
-      formats: ["branding", "markdown", "links"],
-      onlyMainContent: false,
-    }),
-    signal: AbortSignal.timeout(25000),
-  });
+  let res: Response;
+  try {
+    res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        url: targetUrl,
+        formats: ["branding", "markdown", "links"],
+        onlyMainContent: false,
+      }),
+      signal: AbortSignal.timeout(25000),
+    });
+  } catch (fetchErr: unknown) {
+    const errText = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+    if (errText.includes("timeout") || errText.includes("TimeoutError") || errText.includes("aborted")) {
+      throw new Error(
+        "Storefront scraping timed out (25s limit). Note: Vercel Hobby serverless has a 60s hard ceiling. For heavy storefronts, please retry with a direct product or collection URL."
+      );
+    }
+    throw fetchErr;
+  }
 
   if (!res.ok) {
     const errorText = await res.text();
